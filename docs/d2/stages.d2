@@ -1,0 +1,40 @@
+git: Source Forge (e.g. Github) {
+    project_a: Project A
+    project_b: Project B
+    project_c: Project C
+}
+
+jenkins: Jenkins Master {
+    pipeline_a: Pipeline A {
+        build: Nix Build
+        scan: Vulnerability Scan
+        hardware_testing: Hardware Testing
+
+        build -> scan -> hardware_testing
+    }
+
+    pipeline_b: Pipeline B {
+        style.stroke-dash: 3
+
+        build: Nix Build
+        scan: Vulnerability Scan
+        hardware_testing: Hardware Testing
+
+        build -> scan
+        build -> hardware_testing
+    }
+
+    pipeline_c: Pipeline C {
+        build: Nix Build
+        scan: Vulnerability Scan
+        hardware_testing: Hardware Testing
+
+        build -> scan -> hardware_testing
+    }
+}
+
+git.project_a -> jenkins.pipeline_a: on release / tag creation
+git.project_b -> jenkins.pipeline_b: on release / tag creation
+git.project_c -> jenkins.pipeline_c: on release / tag creation
+
+

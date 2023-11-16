@@ -6,6 +6,7 @@
     devShells.default = pkgs.mkShell {
       packages = with pkgs; [
         azure-cli
+        d2
         git
         nix
         nixos-rebuild
