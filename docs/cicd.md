@@ -53,19 +53,22 @@ and for all required architectures.
 
 A Nix build may require building packages for multiple architectures, e.g. `x86_64-linux` and `aarch64-linux`. 
 
-To support this, a series of NixOS-based build servers can be used, each running a 
-[Jenkins build agent](https://www.jenkins.io/doc/book/using/using-agents/) and supporting a specific architecture. The 
-build pipeline can then be broken down into separate build steps, each targeting a different architecture, and able to 
-run in parallel on different agents.   
+To support this, a series of NixOS-based build servers will be used, and be configured as [Remote Builders](https://nixos.org/manual/nix/stable/advanced-topics/distributed-builds) 
+for the Nix Daemon running on the Jenkins Master machine. The build graph for a given build job will be resolved by the
+Jenkins Master's Nix daemon and then distributed via the remote builder protocol to the build agents based on their 
+system architectures and capabilities.  
 
-The Jenkins agent process itself will be run as an _untrusted user_ as far as the Nix Daemon is concerned. Whilst it can 
-trigger Nix builds, it does not have access to the signing key, and it can only make store paths appear by triggering 
-builds (input-addressed), or importing content-addressed contents.
+> As required, more remote builders can be added to scale out total build capacity and to support new architectures. 
+
+In special cases where the remote builder protocol is not appropriate, a [Jenkins build agent](https://www.jenkins.io/doc/book/using/using-agents/) 
+can be run which will co-ordinate with the Jenkins Master. The Jenkins agent process itself will be run as an 
+_untrusted user_ as far as the Nix Daemon is concerned. Whilst it can trigger Nix builds, it does not have access to 
+the signing key, and it can only make store paths appear by triggering builds (input-addressed), or importing 
+content-addressed contents.
 
 For signing store paths, we will rely upon a [post-build-hook](https://nixos.org/manual/nix/stable/advanced-topics/post-build-hook), which runs in the context of the Nix Daemon. This 
-allows configuring a (Nix) post-build step which can sign store paths and push them to a 
-[Binary Cache](https://nixos.wiki/wiki/Binary_Cache), making those store paths available for substitution on other 
-systems. 
+allows configuring a (Nix) post-build step which can sign store paths and push them to a [Binary Cache](https://nixos.wiki/wiki/Binary_Cache), making 
+those store paths available for substitution on other systems. 
 
 The signing key used by the post-build-hook will _only be accessible_ to the `root` user and Nix Daemon. It will need to
 be accessible on every build machine and kept secure. 

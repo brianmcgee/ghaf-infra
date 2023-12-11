@@ -1,6 +1,22 @@
 ci: CI/CD {
     jenkins: Jenkins Master
+    job: Scan Job
+    sbomnix
+    signer: Custom Signer
+    nix_daemon: Nix Daemon
+
+    jenkins <-> job: Trigger Scan
+
+    job -> sbomnix: Paths to scan
+    sbomnix -> nix_daemon: vulnerability scans
+    sbomnix -> signer: scan artefacts
+    signer -> job: signed artefacts
+    signer -> upload: signed artefacts {
+        style.stroke-dash: 3
+    }
 }
+
+ci.upload -> cache
 
 cache: Binary Cache
 
@@ -8,53 +24,13 @@ artefact_store: Artefact Store ??? {
      style.stroke-dash: 3
 }
 
-builder_x86: Builder (x86) {
-    agent: Jenkins Build Agent
-    sbomnix
-    signer: Custom Signer
 
-    nix_daemon: Nix Daemon
-
-    agent -> sbomnix
-    sbomnix <-> nix_daemon: vulnerability scans
-    sbomnix -> signer: scan artefacts
-    signer -> agent: signed artefacts
-    signer -> upload: signed artefacts {
-         style.stroke-dash: 3
-    }
-}
-
-builder_aarch64: Builder (aarch64) {
-    agent: Jenkins Build Agent
-    sbomnix
-    signer: Custom Signer
-
-    nix_daemon: Nix Daemon
-
-    agent -> sbomnix
-    sbomnix <-> nix_daemon: vulnerability scans
-    sbomnix -> signer: scan artefacts
-    signer -> agent: signed artefacts
-    signer -> upload: signed artefacts {
-     style.stroke-dash: 3
-    }
-}
-
-ci.jenkins <-> builder_x86.agent: scan job
-ci.jenkins <-> builder_aarch64.agent: scan job
-
-cache -> builder_x86.nix_daemon: substitute paths {
+cache -> ci.nix_daemon: substitute paths {
     style {
         stroke-dash: 3
     }
 }
-cache -> builder_aarch64.nix_daemon: substitute paths {
-    style.stroke-dash: 3
-}
 
-builder_x86.upload -> artefact_store {
-    style.stroke-dash: 3
-}
-builder_aarch64.upload -> artefact_store {
+ci.job -> artefact_store {
     style.stroke-dash: 3
 }

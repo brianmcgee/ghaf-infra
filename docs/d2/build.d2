@@ -1,6 +1,7 @@
 
 ci: CI/CD {
     jenkins: Jenkins Master
+    nix_daemon: Nix Daemon
 }
 
 cache: Binary Cache {
@@ -8,7 +9,7 @@ cache: Binary Cache {
 }
 
 builder_x86: Builder (x86) {
-    agent: Jenkins Build Agent
+    ssh: SSH
     nix_daemon: Nix Daemon
     build_hook: Build Hook {
         sign: Sign store path
@@ -16,13 +17,26 @@ builder_x86: Builder (x86) {
         sign -> upload
     }
 
-    agent -> nix_daemon: build
+    ssh <-> nix_daemon: nix build
     nix_daemon -> build_hook.sign: post-build-hook
     build_hook.upload -> nix_daemon: on success
-    nix_daemon -> agent: output paths
 }
 
 builder_aarch64: Builder (aarch64) {
+    ssh: SSH
+    nix_daemon: Nix Daemon
+    build_hook: Build Hook {
+        sign: Sign store path
+        upload: Upload to binary cache
+        sign -> upload
+    }
+
+    ssh <-> nix_daemon: nix build
+    nix_daemon -> build_hook.sign: post-build-hook
+    build_hook.upload -> nix_daemon: on success
+}
+
+alternative_builder: Alternative Builder {
     agent: Jenkins Build Agent
     nix_daemon: Nix Daemon
     build_hook: Build Hook {
@@ -37,9 +51,16 @@ builder_aarch64: Builder (aarch64) {
     nix_daemon -> agent: output paths
 }
 
-ci.jenkins <-> builder_x86.agent: build job
-ci.jenkins <--> builder_aarch64.agent: build job
+
+ci.jenkins <-> ci.nix_daemon: nix build
+ci.nix_daemon <-> builder_x86.ssh: remote nix build
+ci.nix_daemon <-> builder_aarch64.ssh: remote nix build
 
 builder_x86.build_hook.upload -> cache.http: Authenticated PUT
 builder_aarch64.build_hook -> cache.http: Authenticated PUT
+
+
+ci.jenkins <-> alternative_builder.agent: build job
+alternative_builder.build_hook.upload -> cache.http: Authenticated PUT
+
 
