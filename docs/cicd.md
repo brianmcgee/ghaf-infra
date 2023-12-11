@@ -96,6 +96,103 @@ download. This can be done via Jenkins, or the artefacts can be uploaded to some
 
 ![](./assets/scan.svg)
 
+## SLSA
+
+The long term goal for the CI/CD setup is to be SLSA Level 3 compliant. Let us examine each SLSA requirement in turn 
+and explore how it will be met. 
+
+> The following requirements have been taken from https://slsa.dev/spec/v0.1/requirements
+
+### 1 Scripted Build
+
+> All build steps were fully defined in some sort of “build script”. The only manual command, if any, was to invoke the 
+> build script.
+
+All builds will be defined a Nix derivations using the Nix language. 
+
+### 2 Build Service
+
+> All build steps ran using some build service, not on a developer’s workstation.
+
+This project and the architecture described above addresses this need directly, providing a CI/CD infrastructure for 
+running development and production builds independent of developer workstations.
+
+### 3.1 Build As Code
+
+> The build definition and configuration executed by the build service is verifiably derived from text file definitions 
+> stored in a version control system.
+
+All builds are defined with Nix and stored within source control. Nix further ensures that whenever a dependency has been
+changed a rebuild is required through its use of input-addressing. 
+
+For example, if the underlying `src` for a derivation were to change, this would be reflected in the hash component of 
+it's output path. Any dependent store paths are then required to be re-built.
+
+### 3.2 Ephemeral Environment
+
+> The build service ensured that the build steps ran in an ephemeral environment, such as a container or VM, provisioned 
+> solely for this build, and not reused from a prior build.
+
+For development builds, it can be deemed acceptable to retain long-lived instances of the Jenkins Master and the remote
+builders. 
+
+For production builds however, and in order to reduce the attack surface, it is desirable to have the entire build 
+environment be created, run the builds, and then tore down. 
+
+This should be possible with a combination of Terraform, NixOS-based images, VM services in a given cloud provider,
+declarative specification of Jenkins build jobs, and some scripting on top to glue all of this together. 
+
+Longer-term it is worth looking into alternative solutions such as micro vms or container services.
+
+### 3.3 Isolated
+
+> The build service ensured that the build steps ran in an isolated environment free of influence from other build 
+> instances, whether prior or concurrent.
+
+> It MUST NOT be possible for a build to access any secrets of the build service, such as the provenance signing key.
+
+TODO check with Florian wrt latest iteration of the arch
+
+> It MUST NOT be possible for two builds that overlap in time to influence one another.
+> It MUST NOT be possible for one build to persist or influence the build environment of a subsequent build.
+
+All Nix builds are executed within a [chroot](https://en.wikipedia.org/wiki/Chroot)-based environment, with additional
+measures taken by the Nix Daemon to ensure a pure build environment. That being said, more could be done to harden this
+default setup. 
+
+> Build caches, if used, MUST be purely content-addressable to prevent tampering.
+
+Currently Nix build caches are input-addressed, not content-addressed. There are a variety of ongoing efforts within the
+community with respect to content-addressable store paths and binary caches.
+
+To mitigate this in the short-term, it is recommended that any build outputs be cross-compared between 2 or more 
+independent production builds. This should detect any issues with reproducibility as well as catching instances of build
+cache tampering. 
+
+Such a comparison is recommended regardless of the introduction of content-addressable store paths as an ongoing measure
+to detect tampering. 
+
+### 4.1 Hermetic
+
+Whilst not currently part of the Level 3 specification, it is expected in the future that hermetic builds will be 
+re-introduced as a requirement. Without going into too much detail, it is believed that the Nix build environment meets
+a lot of the requirements out of the box. 
+
+Any areas where it currently does not can be remediated with improvements to the Nix build environment or by developing
+a custom builder which uses micro vms or containers, for which there are already some efforts underway. 
+
+### 4.2 Reproducibility
+
+Nix was designed with reproducibility in mind, however it is up those writing Nix derivations to ensure their build 
+outputs are bit-wise the same. For example Gradle does not provide bit-wise reproducible outputs unless certain options 
+are enabled. 
+
+There is a mechanism within Nix which can be used to test if a build is reproducible: `nix build --rebuild ...`. This 
+can be used within the CI jobs to automate detection of non-reproducible builds. 
+
+In addition, cross-comparison of production build outputs should help to catch these. If all builds are reproducible,
+however two production builds have different contents, then tampering is the next logical thing to consider. 
+
 ## Hardware Testing
 
 TBD
